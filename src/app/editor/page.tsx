@@ -276,63 +276,86 @@ export default function ModuleEditorPage() {
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
 
         {/* Module Information */}
-        <section className="mb-6 rounded-2xl border border-slate-800 bg-[#111827] p-5 sm:p-6">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-                Module Information
+        <section
+          className={`mb-6 rounded-2xl border border-slate-800 bg-[#111827] p-5 sm:p-6 ${
+            activeMode === "preview" ? "text-center sm:p-10" : ""
+          }`}
+        >
+          {activeMode === "edit" ? (
+            <>
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                    Module Information
+                  </span>
+                  <h1 className="mt-1 text-xl font-bold text-white">
+                    Edit Your Learning Module
+                  </h1>
+                </div>
+
+                <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">
+                  Draft
+                </span>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="module-title"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
+                    Module Title
+                  </label>
+
+                  <input
+                    id="module-title"
+                    value={module.metadata.title}
+                    onChange={(event) =>
+                      updateModuleMetadata({ title: event.target.value })
+                    }
+                    placeholder="Enter module title..."
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="module-description"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
+                    Module Description
+                  </label>
+
+                  <input
+                    id="module-description"
+                    value={module.metadata.description}
+                    onChange={(event) =>
+                      updateModuleMetadata({
+                        description: event.target.value,
+                      })
+                    }
+                    placeholder="Describe your learning module..."
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="mx-auto max-w-3xl py-4">
+              <span className="inline-flex rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                Learning Module
               </span>
-              <h1 className="mt-1 text-xl font-bold text-white">
-                Edit Your Learning Module
+
+              <h1 className="mt-5 break-words text-3xl font-bold leading-tight text-white sm:text-4xl">
+                {module.metadata.title.trim() || "Untitled Learning Module"}
               </h1>
+
+              <p className="mx-auto mt-4 max-w-2xl whitespace-pre-wrap text-sm leading-7 text-slate-400 sm:text-base">
+                {module.metadata.description.trim() ||
+                  "No description has been added to this learning module yet."}
+              </p>
             </div>
-
-            <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">
-              Draft
-            </span>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="module-title"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Module Title
-              </label>
-
-              <input
-                id="module-title"
-                value={module.metadata.title}
-                onChange={(event) =>
-                  updateModuleMetadata({ title: event.target.value })
-                }
-                placeholder="Enter module title..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="module-description"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Module Description
-              </label>
-
-              <input
-                id="module-description"
-                value={module.metadata.description}
-                onChange={(event) =>
-                  updateModuleMetadata({
-                    description: event.target.value,
-                  })
-                }
-                placeholder="Describe your learning module..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
-              />
-            </div>
-          </div>
+          )}
         </section>
 
         {/* Editor Workspace */}

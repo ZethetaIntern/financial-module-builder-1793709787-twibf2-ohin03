@@ -12,6 +12,7 @@ interface SortableBlockProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  isPreview?: boolean;
 }
 
 export default function SortableBlock({
@@ -20,6 +21,7 @@ export default function SortableBlock({
   isSelected,
   onSelect,
   onDelete,
+  isPreview = false,
 }: SortableBlockProps) {
   const {
     attributes,
@@ -28,12 +30,28 @@ export default function SortableBlock({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: block.id });
+  } = useSortable({
+    id: block.id,
+    disabled: isPreview,
+  });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  const style = isPreview
+    ? undefined
+    : {
+        transform: CSS.Transform.toString(transform),
+        transition,
+      };
+
+  if (isPreview) {
+    return (
+      <article
+        data-testid={`preview-block-${block.id}`}
+        className="w-full"
+      >
+        <BlockRenderer block={block} />
+      </article>
+    );
+  }
 
   return (
     <div

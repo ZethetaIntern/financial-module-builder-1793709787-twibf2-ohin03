@@ -27,6 +27,8 @@ import {
 
 export default function BlockCanvas() {
   const blocks = useEditorStore((state) => state.module.blocks);
+  const activeMode = useEditorStore((state) => state.activeMode);
+  const isPreview = activeMode === "preview";
   const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
   const addBlock = useEditorStore((state) => state.addBlock);
   const selectBlock = useEditorStore((state) => state.selectBlock);
@@ -65,6 +67,36 @@ export default function BlockCanvas() {
   function handleDragCancel() {
     setActiveId(null);
     useEditorStore.getState().setIsDragging(false);
+  }
+
+  if (isPreview) {
+    const visibleBlocks = blocks.filter((block) => block.visible);
+
+    return (
+      <div data-testid="module-preview" className="space-y-6">
+        {visibleBlocks.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center">
+            <p className="text-sm text-slate-400">
+              No visible content blocks to preview.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {visibleBlocks.map((block, index) => (
+              <SortableBlock
+                key={block.id}
+                block={block}
+                index={index}
+                isSelected={false}
+                onSelect={() => {}}
+                onDelete={() => {}}
+                isPreview
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
