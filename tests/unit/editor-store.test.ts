@@ -67,4 +67,87 @@ describe("Editor Store", () => {
     expect(reordered[0].id).toBe(secondId);
     expect(reordered[1].id).toBe(firstId);
   });
+  it("should undo the most recent block addition", () => {
+    useEditorStore.getState().addBlock("heading");
+
+    expect(useEditorStore.getState().module.blocks).toHaveLength(1);
+
+    useEditorStore.getState().undo();
+
+    expect(useEditorStore.getState().module.blocks).toHaveLength(0);
+    expect(useEditorStore.getState().canUndo).toBe(false);
+    expect(useEditorStore.getState().canRedo).toBe(true);
+  });
+
+  it("should redo an undone block addition", () => {
+    useEditorStore.getState().addBlock("heading");
+    useEditorStore.getState().undo();
+    useEditorStore.getState().redo();
+
+    expect(useEditorStore.getState().module.blocks).toHaveLength(1);
+    expect(useEditorStore.getState().canUndo).toBe(true);
+    expect(useEditorStore.getState().canRedo).toBe(false);
+  });
+
+  it("should support multiple consecutive undo and redo operations", () => {
+    const store = useEditorStore.getState();
+
+    store.addBlock("heading");
+    useEditorStore.getState().addBlock("rich-text");
+    useEditorStore.getState().addBlock("callout");
+
+    useEditorStore.getState().undo();
+    useEditorStore.getState().undo();
+
+    expect(useEditorStore.getState().module.blocks).toHaveLength(1);
+
+    useEditorStore.getState().redo();
+    useEditorStore.getState().redo();
+
+    expect(useEditorStore.getState().module.blocks).toHaveLength(3);
+  });
+
+  it("should clear redo history after a new action", () => {
+    useEditorStore.getState().addBlock("heading");
+    useEditorStore.getState().undo();
+
+    expect(useEditorStore.getState().canRedo).toBe(true);
+
+    useEditorStore.getState().addBlock("rich-text");
+
+    expect(useEditorStore.getState().canRedo).toBe(false);
+    expect(useEditorStore.getState().module.blocks).toHaveLength(1);
+  });
+
+  it("should keep a maximum of 50 undo history states", () => {
+    for (let index = 0; index < 55; index += 1) {
+      useEditorStore.getState().addBlock("heading");
+    }
+
+    expect(useEditorStore.getState().history.past).toHaveLength(50);
+    expect(useEditorStore.getState().module.blocks).toHaveLength(55);
+  });
+
+  it("should not change the module when undo or redo history is empty", () => {
+    const initialModule = useEditorStore.getState().module;
+
+    useEditorStore.getState().undo();
+    useEditorStore.getState().redo();
+
+    expect(useEditorStore.getState().module).toBe(initialModule);
+    expect(useEditorStore.getState().canUndo).toBe(false);
+    expect(useEditorStore.getState().canRedo).toBe(false);
+  });
+
+  it("should reset undo and redo history when resetting the module", () => {
+    useEditorStore.getState().addBlock("heading");
+
+    useEditorStore.getState().resetModule();
+
+    expect(useEditorStore.getState().history.past).toHaveLength(0);
+    expect(useEditorStore.getState().history.future).toHaveLength(0);
+    expect(useEditorStore.getState().canUndo).toBe(false);
+    expect(useEditorStore.getState().canRedo).toBe(false);
+  });
+
 });

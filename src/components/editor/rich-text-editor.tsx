@@ -2,7 +2,6 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
 import {
   Bold,
   Italic,
@@ -34,7 +33,6 @@ export default function RichTextEditor({
           levels: [1, 2],
         },
       }),
-      Underline,
     ],
     content,
     immediatelyRender: false,

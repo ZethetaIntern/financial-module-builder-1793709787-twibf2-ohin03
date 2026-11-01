@@ -1,11 +1,26 @@
 "use client";
 
+import { useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+
 import { useEditorStore } from "@/store/editor-store";
 import { BLOCK_REGISTRY } from "@/data/block-registry";
-import BlockRenderer from "@/components/editor/block-renderer";
+import SortableBlock from "@/components/editor/sortable-block";
 import {
   Plus,
-  Trash2,
   FileText,
   MousePointerClick,
 } from "lucide-react";
@@ -16,6 +31,41 @@ export default function BlockCanvas() {
   const addBlock = useEditorStore((state) => state.addBlock);
   const selectBlock = useEditorStore((state) => state.selectBlock);
   const deleteBlock = useEditorStore((state) => state.deleteBlock);
+  const reorderBlocks = useEditorStore((state) => state.reorderBlocks);
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function handleDragStart(event: { active: { id: string | number } }) {
+    setActiveId(String(event.active.id));
+    useEditorStore.getState().setIsDragging(true);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      reorderBlocks(String(active.id), String(over.id));
+    }
+
+    setActiveId(null);
+    useEditorStore.getState().setIsDragging(false);
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+    useEditorStore.getState().setIsDragging(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -82,59 +132,31 @@ export default function BlockCanvas() {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {blocks.map((block, index) => {
-              const isSelected = selectedBlockId === block.id;
-
-              return (
-                <div
-                  key={block.id}
-                  onClick={() => selectBlock(block.id)}
-                  className={`group relative rounded-xl border p-3 transition ${
-                    isSelected
-                      ? "border-indigo-500 bg-indigo-500/5 ring-1 ring-indigo-500/30"
-                      : "border-transparent hover:border-slate-700"
-                  }`}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        selectBlock(block.id);
-                      }}
-                      className="text-xs font-medium text-slate-400 hover:text-indigo-400"
-                    >
-                      {index + 1}. {block.title}
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      {isSelected && (
-                        <span className="rounded-md bg-indigo-500/15 px-2 py-1 text-[10px] font-semibold text-indigo-400">
-                          SELECTED
-                        </span>
-                      )}
-
-                      <button
-                        type="button"
-                        aria-label={`Delete ${block.title}`}
-                        title="Delete block"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          deleteBlock(block.id);
-                        }}
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <BlockRenderer block={block} />
-                </div>
-              );
-            })}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext
+              items={blocks.map((block) => block.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {blocks.map((block, index) => (
+                  <SortableBlock
+                    key={block.id}
+                    block={block}
+                    index={index}
+                    isSelected={selectedBlockId === block.id}
+                    onSelect={selectBlock}
+                    onDelete={deleteBlock}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>

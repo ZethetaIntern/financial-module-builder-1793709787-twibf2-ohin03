@@ -12,6 +12,8 @@ import {
   Pencil,
   BookOpen,
   Save,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 
 export default function ModuleEditorPage() {
@@ -48,6 +50,53 @@ export default function ModuleEditorPage() {
       console.error("Failed to restore active module:", error);
     }
   }, []);
+  // Global Undo / Redo keyboard shortcuts.
+  useEffect(() => {
+    function handleKeyboardShortcuts(event: KeyboardEvent) {
+      const target = event.target;
+
+      // Preserve native undo/redo inside inputs and rich-text editors.
+      if (
+        target instanceof HTMLElement &&
+        (
+          target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable='true']")
+        )
+      ) {
+        return;
+      }
+
+      const isModifierPressed = event.ctrlKey || event.metaKey;
+
+      if (!isModifierPressed || event.altKey) return;
+
+      const key = event.key.toLowerCase();
+      const store = useEditorStore.getState();
+
+      if (key === "z" && event.shiftKey) {
+        event.preventDefault();
+        store.redo();
+      } else if (key === "z") {
+        event.preventDefault();
+        store.undo();
+      } else if (key === "y" && !event.shiftKey) {
+        event.preventDefault();
+        store.redo();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyboardShortcuts);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyboardShortcuts);
+    };
+  }, []);
+
+  const undo = useEditorStore((state) => state.undo);
+  const redo = useEditorStore((state) => state.redo);
+  const canUndo = useEditorStore((state) => state.canUndo);
+  const canRedo = useEditorStore((state) => state.canRedo);
+
   const module = useEditorStore((state) => state.module);
   const activeModuleId = useEditorStore((state) => state.activeModuleId);
   const updateModuleMetadata = useEditorStore(
@@ -145,6 +194,30 @@ export default function ModuleEditorPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!canUndo}
+                title="Undo (Ctrl + Z)"
+                aria-label="Undo"
+                className="flex items-center gap-1 rounded-md px-2 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500 disabled:opacity-100"
+              >
+                <Undo2 size={17} /><span>Undo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={redo}
+                disabled={!canRedo}
+                title="Redo (Ctrl + Shift + Z)"
+                aria-label="Redo"
+                className="flex items-center gap-1 rounded-md px-2 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500 disabled:opacity-100"
+              >
+                <Redo2 size={17} /><span>Redo</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setActiveMode("edit")}

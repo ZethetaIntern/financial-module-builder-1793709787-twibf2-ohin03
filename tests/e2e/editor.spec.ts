@@ -102,16 +102,21 @@ test.describe("FinanceLab Editor", () => {
 
     await expect(page.getByText("2 Blocks", { exact: true })).toBeVisible();
 
-    const headingHeader = page
-      .getByRole("button", { name: "1. Heading" })
-      .locator("..");
-    const richTextHeader = page
-      .getByRole("button", { name: "2. Rich Text" })
-      .locator("..");
+    const headingBlock = page.getByTestId(/sortable-block-/).filter({
+      has: page.getByRole("button", { name: "1. Heading", exact: true }),
+    });
+    const richTextBlock = page.getByTestId(/sortable-block-/).filter({
+      has: page.getByRole("button", { name: "2. Rich Text", exact: true }),
+    });
 
-    await headingHeader.getByRole("button", { name: "1. Heading" }).click();
-    await expect(headingHeader.getByText("SELECTED")).toBeVisible();
-    await expect(richTextHeader.getByText("SELECTED")).toHaveCount(0);
+    await expect(headingBlock).toHaveCount(1);
+    await expect(richTextBlock).toHaveCount(1);
+
+    await headingBlock
+      .getByRole("button", { name: "1. Heading", exact: true })
+      .click();
+    await expect(headingBlock.getByText("SELECTED")).toBeVisible();
+    await expect(richTextBlock.getByText("SELECTED")).toHaveCount(0);
 
     await page.getByRole("button", {
       name: "Delete Heading",

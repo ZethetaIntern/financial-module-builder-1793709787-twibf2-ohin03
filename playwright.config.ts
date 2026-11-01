@@ -8,7 +8,7 @@ export default defineConfig({
   timeout: 30000,
 
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3001",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -21,9 +21,12 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
+    command: "npm run build && npm run start -- --port 3001",
+    url: "http://127.0.0.1:3001",
+    reuseExistingServer: false,
+    env: {
+      NEXT_DIST_DIR: ".next-playwright",
+    },
     timeout: 120000,
   },
 });
