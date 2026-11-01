@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BaseBlock } from "@/types";
 import { useEditorStore } from "@/store/editor-store";
 import { Calculator, TrendingUp } from "lucide-react";
+import { calculateCompoundInterest } from "@/lib/finance/compound-interest";
 
 interface FinancialCalculatorBlockProps {
   block: BaseBlock;
@@ -19,26 +20,30 @@ export default function FinancialCalculatorBlock({
   const years = Number(block.content.years ?? 5);
   const frequency = Number(block.content.frequency ?? 12);
 
-  const results = useMemo(() => {
-    const validPrincipal = Math.max(0, principal);
-    const validRate = Math.max(0, rate);
-    const validYears = Math.max(0, years);
-    const validFrequency = Math.max(1, frequency);
+  const [inputs, setInputs] = useState({
+    principal: String(principal),
+    rate: String(rate),
+    years: String(years),
+  });
 
-    const futureValue =
-      validRate === 0
-        ? validPrincipal
-        : validPrincipal *
-          Math.pow(
-            1 + validRate / 100 / validFrequency,
-            validFrequency * validYears
-          );
+  useEffect(() => {
+    setInputs({
+      principal: String(principal),
+      rate: String(rate),
+      years: String(years),
+    });
+  }, [principal, rate, years]);
 
-    return {
-      futureValue,
-      interest: futureValue - validPrincipal,
-    };
-  }, [principal, rate, years, frequency]);
+  const results = useMemo(
+    () =>
+      calculateCompoundInterest({
+        principal,
+        rate,
+        years,
+        frequency,
+      }),
+    [principal, rate, years, frequency]
+  );
 
   function updateContent(key: string, value: number) {
     updateBlock(block.id, {
@@ -47,6 +52,64 @@ export default function FinancialCalculatorBlock({
         [key]: value,
       },
     });
+  }
+
+  function handleInputChange(
+    key: "principal" | "rate" | "years",
+    value: string
+  ) {
+    setInputs((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function handleInputBlur(key: "principal" | "rate" | "years") {
+    const rawValue = inputs[key].trim();
+
+    if (rawValue === "") {
+      setInputs((current) => ({
+        ...current,
+        [key]: String(
+          key === "principal"
+            ? principal
+            : key === "rate"
+              ? rate
+              : years
+        ),
+      }));
+      return;
+    }
+
+    const value = Number(rawValue);
+
+    const limits = {
+      principal: { min: 0, max: 1_000_000_000_000 },
+      rate: { min: 0, max: 1000 },
+      years: { min: 0, max: 1000 },
+    };
+
+    const limit = limits[key];
+
+    if (
+      !Number.isFinite(value) ||
+      value < limit.min ||
+      value > limit.max
+    ) {
+      setInputs((current) => ({
+        ...current,
+        [key]: String(
+          key === "principal"
+            ? principal
+            : key === "rate"
+              ? rate
+              : years
+        ),
+      }));
+      return;
+    }
+
+    updateContent(key, value);
   }
 
   const formatter = new Intl.NumberFormat("en-US", {
@@ -70,10 +133,12 @@ export default function FinancialCalculatorBlock({
           <input
             type="number"
             min="0"
-            value={principal}
+            max="1000000000000"
+            value={inputs.principal}
             onChange={(event) =>
-              updateContent("principal", Math.max(0, Number(event.target.value)))
+              handleInputChange("principal", event.target.value)
             }
+            onBlur={() => handleInputBlur("principal")}
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-indigo-500"
           />
         </label>
@@ -83,11 +148,13 @@ export default function FinancialCalculatorBlock({
           <input
             type="number"
             min="0"
+            max="1000"
             step="0.1"
-            value={rate}
+            value={inputs.rate}
             onChange={(event) =>
-              updateContent("rate", Math.max(0, Number(event.target.value)))
+              handleInputChange("rate", event.target.value)
             }
+            onBlur={() => handleInputBlur("rate")}
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-indigo-500"
           />
         </label>
@@ -97,11 +164,13 @@ export default function FinancialCalculatorBlock({
           <input
             type="number"
             min="0"
+            max="1000"
             step="1"
-            value={years}
+            value={inputs.years}
             onChange={(event) =>
-              updateContent("years", Math.max(0, Number(event.target.value)))
+              handleInputChange("years", event.target.value)
             }
+            onBlur={() => handleInputBlur("years")}
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-indigo-500"
           />
         </label>
