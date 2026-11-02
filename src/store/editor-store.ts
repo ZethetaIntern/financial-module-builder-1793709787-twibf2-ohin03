@@ -188,7 +188,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       saveModule(nextModule);
 
       return {
-        ...createHistoryUpdate(nextModule === state.module ? state.module : state.module, nextModule, state.history),
+        ...createHistoryUpdate(state.module, nextModule, state.history),
         selectedBlockId: newBlock.id,
       };
     });
@@ -217,11 +217,12 @@ export const useEditorStore = create<EditorStore>((set) => ({
         },
       };
 
-      if (JSON.stringify(existingBlock) === JSON.stringify({
-        ...existingBlock,
-        ...updates,
-        updatedAt: now,
-      })) {
+      const updatedBlock = { ...existingBlock, ...updates };
+
+      if (
+        JSON.stringify(existingBlock) ===
+        JSON.stringify(updatedBlock)
+      ) {
         return state;
       }
 

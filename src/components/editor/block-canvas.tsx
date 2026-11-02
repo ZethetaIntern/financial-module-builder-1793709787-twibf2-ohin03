@@ -29,11 +29,17 @@ export default function BlockCanvas() {
   const blocks = useEditorStore((state) => state.module.blocks);
   const activeMode = useEditorStore((state) => state.activeMode);
   const isPreview = activeMode === "preview";
-  const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
+
+  const selectedBlockId = useEditorStore(
+    (state) => state.selectedBlockId
+  );
+
   const addBlock = useEditorStore((state) => state.addBlock);
   const selectBlock = useEditorStore((state) => state.selectBlock);
   const deleteBlock = useEditorStore((state) => state.deleteBlock);
-  const reorderBlocks = useEditorStore((state) => state.reorderBlocks);
+  const reorderBlocks = useEditorStore(
+    (state) => state.reorderBlocks
+  );
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -48,7 +54,9 @@ export default function BlockCanvas() {
     })
   );
 
-  function handleDragStart(event: { active: { id: string | number } }) {
+  function handleDragStart(event: {
+    active: { id: string | number };
+  }) {
     setActiveId(String(event.active.id));
     useEditorStore.getState().setIsDragging(true);
   }
@@ -69,11 +77,15 @@ export default function BlockCanvas() {
     useEditorStore.getState().setIsDragging(false);
   }
 
+  // Learner Preview Mode
   if (isPreview) {
     const visibleBlocks = blocks.filter((block) => block.visible);
 
     return (
-      <div data-testid="module-preview" className="space-y-6">
+      <div
+        data-testid="module-preview"
+        className="space-y-6"
+      >
         {visibleBlocks.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center">
             <p className="text-sm text-slate-400">
@@ -99,6 +111,7 @@ export default function BlockCanvas() {
     );
   }
 
+  // Editor Mode
   return (
     <div className="space-y-6">
       {/* Canvas Header */}
@@ -107,13 +120,19 @@ export default function BlockCanvas() {
           <h2 className="text-lg font-semibold text-white">
             Module Canvas
           </h2>
+
           <p className="mt-1 text-sm text-slate-400">
             Build your financial education module.
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-300">
-          {blocks.length} {blocks.length === 1 ? "Block" : "Blocks"}
+        <div
+          data-testid="block-count"
+          className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-300"
+          aria-live="polite"
+        >
+          {blocks.length}{" "}
+          {blocks.length === 1 ? "Block" : "Blocks"}
         </div>
       </div>
 
@@ -147,7 +166,10 @@ export default function BlockCanvas() {
         {blocks.length === 0 ? (
           <div className="flex min-h-[350px] flex-col items-center justify-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900">
-              <FileText size={28} className="text-indigo-400" />
+              <FileText
+                size={28}
+                className="text-indigo-400"
+              />
             </div>
 
             <h3 className="text-lg font-semibold text-white">
