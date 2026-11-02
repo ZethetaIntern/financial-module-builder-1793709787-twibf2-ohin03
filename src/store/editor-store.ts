@@ -10,6 +10,7 @@ import type {
 import { getBlockDefinition } from "@/data/block-registry";
 
 const MAX_HISTORY = 50;
+export const MODULE_DELETED_EVENT = "financelab:module-deleted";
 
 interface EditorHistory {
   past: LearningModule[];
@@ -29,6 +30,7 @@ interface EditorStore {
   canRedo: boolean;
 
   loadModule: (id: string, title: string, description: string) => void;
+  deleteModule: (id: string) => void;
   addBlock: (type: BlockType, index?: number) => void;
   updateBlock: (id: string, updates: Partial<BaseBlock>) => void;
   deleteBlock: (id: string) => void;
@@ -78,6 +80,49 @@ const saveModule = (module: LearningModule) => {
     );
   } catch (error) {
     console.error("Failed to save module:", error);
+  }
+};
+
+const removeSavedModule = (id: string) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const savedModules = localStorage.getItem("financelab-modules");
+
+    if (savedModules) {
+      const parsedModules: unknown = JSON.parse(savedModules);
+
+      if (Array.isArray(parsedModules)) {
+        localStorage.setItem(
+          "financelab-modules",
+          JSON.stringify(
+            parsedModules.filter(
+              (item) =>
+                !item ||
+                typeof item !== "object" ||
+                !("id" in item) ||
+                String(item.id) !== id
+            )
+          )
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Failed to remove module from saved list:", error);
+  }
+
+  try {
+    localStorage.removeItem(`financelab-content-${id}`);
+  } catch (error) {
+    console.error("Failed to remove saved module content:", error);
+  }
+
+  try {
+    if (localStorage.getItem("financelab-active-module-id") === id) {
+      localStorage.removeItem("financelab-active-module-id");
+    }
+  } catch (error) {
+    console.error("Failed to clear active module reference:", error);
   }
 };
 
@@ -146,6 +191,32 @@ export const useEditorStore = create<EditorStore>((set) => ({
       history: { past: [], future: [] },
       canUndo: false,
       canRedo: false,
+    });
+  },
+
+  deleteModule: (id) => {
+    removeSavedModule(id);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(MODULE_DELETED_EVENT, { detail: { id } })
+      );
+    }
+
+    set((state) => {
+      if (state.activeModuleId !== id) return state;
+
+      return {
+        module: createInitialModule(),
+        activeModuleId: null,
+        selectedBlockId: null,
+        activeMode: "edit",
+        previewDevice: "desktop",
+        isDragging: false,
+        history: { past: [], future: [] },
+        canUndo: false,
+        canRedo: false,
+      };
     });
   },
 

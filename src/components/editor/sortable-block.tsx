@@ -67,8 +67,10 @@ export default function SortableBlock({
             : "border-transparent hover:border-slate-700"
       }`}
     >
+      {/* Block Header */}
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
+          {/* Drag Handle */}
           <button
             type="button"
             {...attributes}
@@ -76,45 +78,49 @@ export default function SortableBlock({
             aria-label={`Drag to reorder ${block.title}`}
             title="Drag to reorder"
             onClick={(event) => event.stopPropagation()}
-            className="touch-none cursor-grab rounded-lg p-2 text-slate-500 transition hover:bg-slate-700 hover:text-white active:cursor-grabbing"
+            className="flex h-10 w-10 shrink-0 touch-none cursor-grab items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-700 hover:text-white active:cursor-grabbing"
           >
-            <GripVertical size={17} />
+            <GripVertical size={18} />
           </button>
 
+          {/* Block Title */}
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onSelect(block.id);
             }}
-            className="truncate text-left text-xs font-medium text-slate-400 hover:text-indigo-400"
+            className="min-w-0 truncate text-left text-xs font-medium text-slate-300 transition hover:text-indigo-400"
           >
             {index + 1}. {block.title}
           </button>
         </div>
 
+        {/* Block Actions */}
         <div className="flex shrink-0 items-center gap-2">
           {isSelected && (
-            <span className="rounded-md bg-indigo-500/15 px-2 py-1 text-[10px] font-semibold text-indigo-400">
+            <span className="hidden rounded-md bg-indigo-500/15 px-2 py-1 text-[10px] font-semibold text-indigo-400 sm:inline-flex">
               SELECTED
             </span>
           )}
 
+          {/* Delete Button */}
           <button
             type="button"
             aria-label={`Delete ${block.title}`}
-            title="Delete block"
+            title={`Delete ${block.title}`}
             onClick={(event) => {
               event.stopPropagation();
               onDelete(block.id);
             }}
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 transition hover:border-red-500/50 hover:bg-red-500/20 hover:text-red-300 focus-visible:outline-2 focus-visible:outline-red-400 focus-visible:outline-offset-2"
           >
-            <Trash2 size={15} />
+            <Trash2 size={17} />
           </button>
         </div>
       </div>
 
+      {/* Block Content */}
       <BlockRenderer block={block} />
     </div>
   );

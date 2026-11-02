@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useEditorStore } from "@/store/editor-store";
+import { useRouter } from "next/navigation";
+import {
+  MODULE_DELETED_EVENT,
+  useEditorStore,
+} from "@/store/editor-store";
 import BlockCanvas from "@/components/editor/block-canvas";
 import ModuleIOControls from "@/components/editor/module-io-controls";
 import {
@@ -15,9 +19,12 @@ import {
   Save,
   Undo2,
   Redo2,
+  MoreHorizontal,
 } from "lucide-react";
 
 export default function ModuleEditorPage() {
+  const router = useRouter();
+
   // Restore the previously active module after page refresh.
   useEffect(() => {
     const activeId = localStorage.getItem("financelab-active-module-id");
@@ -110,12 +117,65 @@ export default function ModuleEditorPage() {
     (state) => state.setPreviewDevice
   );
 
+  useEffect(() => {
+    function handleDeletedModule(id: string) {
+      const store = useEditorStore.getState();
+
+      console.info("Editor received module deletion", id, store.activeModuleId);
+      if (store.activeModuleId !== id) return;
+
+      store.resetModule();
+      router.replace("/");
+    }
+
+    function handleDeleteEvent(event: Event) {
+      const detail = (event as CustomEvent<{ id?: unknown }>).detail;
+
+      if (typeof detail?.id === "string") {
+        handleDeletedModule(detail.id);
+      }
+    }
+
+    function handleStorageChange(event: StorageEvent) {
+      const activeId = useEditorStore.getState().activeModuleId;
+
+      if (!activeId) return;
+
+      if (
+        event.key === "financelab-active-module-id" &&
+        event.newValue === null
+      ) {
+        handleDeletedModule(activeId);
+      } else if (
+        event.key === `financelab-content-${activeId}` &&
+        event.newValue === null
+      ) {
+        handleDeletedModule(activeId);
+      }
+    }
+
+    window.addEventListener(MODULE_DELETED_EVENT, handleDeleteEvent);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener(MODULE_DELETED_EVENT, handleDeleteEvent);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [router]);
+
   // Automatically save the active module's content.
   useEffect(() => {
     if (!activeModuleId) return;
 
     const timeout = window.setTimeout(() => {
       try {
+        if (
+          localStorage.getItem("financelab-active-module-id") !==
+          activeModuleId
+        ) {
+          return;
+        }
+
         localStorage.setItem(
           `financelab-content-${activeModuleId}`,
           JSON.stringify(module)
@@ -170,32 +230,134 @@ export default function ModuleEditorPage() {
     <main className="min-h-screen bg-[#090d18] text-slate-100">
       {/* Top Navigation */}
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-[#0c1220]/95 backdrop-blur-xl">
-        <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 sm:px-6">
+          {/* Main toolbar row */}
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <a
+                href="/"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:border-indigo-500 hover:text-white"
+                aria-label="Back to dashboard"
+              >
+                <ArrowLeft size={18} />
+              </a>
 
-          <div className="flex items-center gap-3">
-            <a
-              href="/"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition hover:border-indigo-500 hover:text-white"
-              aria-label="Back to dashboard"
-            >
-              <ArrowLeft size={18} />
-            </a>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <BookOpen size={17} className="text-indigo-400" />
-                <span className="font-semibold text-white">
-                  FinanceLab Editor
-                </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <BookOpen size={17} className="shrink-0 text-indigo-400" />
+                  <span className="truncate text-sm font-semibold text-white sm:text-base">
+                    FinanceLab Editor
+                  </span>
+                </div>
+                <p className="truncate text-[11px] text-slate-500 sm:text-xs">
+                  Interactive Module Builder
+                </p>
               </div>
-              <p className="text-xs text-slate-500">
-                Interactive Module Builder
-              </p>
             </div>
+
+            {/* Desktop actions */}
+            <div className="hidden items-center gap-2 sm:flex">
+              <ModuleIOControls />
+
+              <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  title="Undo (Ctrl + Z)"
+                  aria-label="Undo"
+                  className="flex min-h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500"
+                >
+                  <Undo2 size={16} />
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  title="Redo (Ctrl + Shift + Z)"
+                  aria-label="Redo"
+                  className="flex min-h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500"
+                >
+                  <Redo2 size={16} />
+                  Redo
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("edit")}
+                  aria-pressed={activeMode === "edit"}
+                  className={`flex min-h-9 items-center gap-2 rounded-md px-3 text-sm transition ${
+                    activeMode === "edit"
+                      ? "bg-indigo-500 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Pencil size={15} />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("preview")}
+                  aria-pressed={activeMode === "preview"}
+                  className={`flex min-h-9 items-center gap-2 rounded-md px-3 text-sm transition ${
+                    activeMode === "preview"
+                      ? "bg-indigo-500 text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Eye size={15} />
+                  Preview
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+                {devices.map((device) => {
+                  const Icon = device.icon;
+                  return (
+                    <button
+                      key={device.id}
+                      type="button"
+                      onClick={() => setPreviewDevice(device.id)}
+                      title={device.label}
+                      aria-label={`${device.label} preview`}
+                      aria-pressed={previewDevice === device.id}
+                      className={`flex h-9 w-9 items-center justify-center rounded-md transition ${
+                        previewDevice === device.id
+                          ? "bg-indigo-500/20 text-indigo-400"
+                          : "text-slate-500 hover:text-white"
+                      }`}
+                    >
+                      <Icon size={16} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mobile export/import menu */}
+            <details className="relative shrink-0 sm:hidden">
+              <summary
+                className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-slate-300 transition hover:border-indigo-500 hover:text-white [&::-webkit-details-marker]:hidden"
+                aria-label="More editor actions"
+                title="More actions"
+              >
+                <MoreHorizontal size={20} />
+              </summary>
+
+              <div className="absolute right-0 top-12 z-50 w-[min(280px,calc(100vw-24px))] rounded-xl border border-slate-700 bg-[#111827] p-3 shadow-2xl shadow-black/40">
+                <p className="mb-3 px-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Module actions
+                </p>
+                <ModuleIOControls />
+              </div>
+            </details>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <ModuleIOControls />
+          {/* Compact mobile toolbar */}
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-t border-slate-800/80 pt-3 sm:hidden">
             <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
               <button
                 type="button"
@@ -203,55 +365,54 @@ export default function ModuleEditorPage() {
                 disabled={!canUndo}
                 title="Undo (Ctrl + Z)"
                 aria-label="Undo"
-                className="flex items-center gap-1 rounded-md px-2 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500 disabled:opacity-100"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
               >
-                <Undo2 size={17} /><span>Undo</span>
+                <Undo2 size={17} />
               </button>
-
               <button
                 type="button"
                 onClick={redo}
                 disabled={!canRedo}
                 title="Redo (Ctrl + Shift + Z)"
                 aria-label="Redo"
-                className="flex items-center gap-1 rounded-md px-2 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:text-slate-500 disabled:opacity-100"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
               >
-                <Redo2 size={17} /><span>Redo</span>
+                <Redo2 size={17} />
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveMode("edit")}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
-                activeMode === "edit"
-                  ? "bg-indigo-500 text-white"
-                  : "bg-slate-800 text-slate-400 hover:text-white"
-              }`}
-            >
-              <Pencil size={15} />
-              Edit
-            </button>
+            <div className="flex min-w-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveMode("edit")}
+                aria-pressed={activeMode === "edit"}
+                className={`flex min-h-9 flex-1 items-center justify-center gap-1 rounded-md px-2 text-xs font-medium transition ${
+                  activeMode === "edit"
+                    ? "bg-indigo-500 text-white"
+                    : "text-slate-400"
+                }`}
+              >
+                <Pencil size={14} />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMode("preview")}
+                aria-pressed={activeMode === "preview"}
+                className={`flex min-h-9 flex-1 items-center justify-center gap-1 rounded-md px-2 text-xs font-medium transition ${
+                  activeMode === "preview"
+                    ? "bg-indigo-500 text-white"
+                    : "text-slate-400"
+                }`}
+              >
+                <Eye size={14} />
+                Preview
+              </button>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveMode("preview")}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
-                activeMode === "preview"
-                  ? "bg-indigo-500 text-white"
-                  : "bg-slate-800 text-slate-400 hover:text-white"
-              }`}
-            >
-              <Eye size={15} />
-              Preview
-            </button>
-
-            <div className="mx-1 hidden h-7 w-px bg-slate-700 sm:block" />
-
-            <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+            <div className="flex items-center gap-0.5 rounded-lg border border-slate-700 bg-slate-900 p-1">
               {devices.map((device) => {
                 const Icon = device.icon;
-
                 return (
                   <button
                     key={device.id}
@@ -259,13 +420,14 @@ export default function ModuleEditorPage() {
                     onClick={() => setPreviewDevice(device.id)}
                     title={device.label}
                     aria-label={`${device.label} preview`}
-                    className={`rounded-md p-2 transition ${
+                    aria-pressed={previewDevice === device.id}
+                    className={`flex h-9 w-8 items-center justify-center rounded-md transition ${
                       previewDevice === device.id
                         ? "bg-indigo-500/20 text-indigo-400"
-                        : "text-slate-500 hover:text-white"
+                        : "text-slate-500"
                     }`}
                   >
-                    <Icon size={16} />
+                    <Icon size={15} />
                   </button>
                 );
               })}

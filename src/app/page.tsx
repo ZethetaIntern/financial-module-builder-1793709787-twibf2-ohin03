@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useEditorStore } from "@/store/editor-store";
+import {
+  MODULE_DELETED_EVENT,
+  useEditorStore,
+} from "@/store/editor-store";
 import {
   Activity,
   ArrowUpRight,
   Bell,
   BookOpen,
-  ChartNoAxesCombined,
   CheckCircle2,
   ChevronDown,
-  CircleHelp,
   Clock3,
   FileText,
   FolderOpen,
@@ -21,8 +22,8 @@ import {
   Menu,
   Plus,
   Search,
-  Settings,
   Sparkles,
+  Trash2,
   TrendingUp,
   Users,
   X,
@@ -76,16 +77,47 @@ const initialModules: Module[] = [
   },
 ];
 
+function readStoredModules(): Module[] {
+  if (typeof window === "undefined") {
+    return initialModules;
+  }
+
+  try {
+    const savedModules = localStorage.getItem("financelab-modules");
+
+    if (!savedModules) {
+      return initialModules;
+    }
+
+    const parsedModules: unknown = JSON.parse(savedModules);
+
+    if (!Array.isArray(parsedModules)) {
+      return initialModules;
+    }
+
+    return (parsedModules as Module[]).map((savedModule) => {
+      const defaultModule = initialModules.find(
+        (item) => item.id === savedModule.id
+      );
+
+      return {
+        ...defaultModule,
+        ...savedModule,
+        description:
+          savedModule.description?.trim() ||
+          defaultModule?.description ||
+          "",
+      };
+    });
+  } catch (error) {
+    console.error("Failed to load saved modules:", error);
+    return initialModules;
+  }
+}
+
 const navigation = [
   { label: "Overview", icon: LayoutDashboard },
   { label: "My Modules", icon: Layers3 },
-  { label: "Templates", icon: FileText },
-  { label: "Analytics", icon: ChartNoAxesCombined },
-];
-
-const secondaryNavigation = [
-  { label: "Settings", icon: Settings },
-  { label: "Help & Support", icon: CircleHelp },
 ];
 
 function ModuleIcon({ module }: { module: Module }) {
@@ -114,60 +146,33 @@ function ModuleIcon({ module }: { module: Module }) {
 export default function Home() {
   const router = useRouter();
   const loadModule = useEditorStore((state) => state.loadModule);
+  const deleteModule = useEditorStore((state) => state.deleteModule);
 
   const [activeNav, setActiveNav] = useState("Overview");
-  const [modules, setModules] = useState<Module[]>(initialModules);
-  const [modulesLoaded, setModulesLoaded] = useState(false);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Load saved modules after the component mounts.
-  useEffect(() => {
+  const persistModules = (nextModules: Module[]) => {
     try {
-      const savedModules = localStorage.getItem("financelab-modules");
-
-      if (savedModules) {
-        const parsedModules: unknown = JSON.parse(savedModules);
-
-        if (Array.isArray(parsedModules)) {
-          const mergedModules = (parsedModules as Module[]).map((savedModule) => {
-            const defaultModule = initialModules.find(
-              (item) => item.id === savedModule.id
-            );
-
-            return {
-              ...defaultModule,
-              ...savedModule,
-              description:
-                savedModule.description?.trim() ||
-                defaultModule?.description ||
-                "",
-            };
-          });
-
-          setModules(mergedModules);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load saved modules:", error);
-    } finally {
-      setModulesLoaded(true);
-    }
-  }, []);
-
-  // Save modules whenever the list changes.
-  useEffect(() => {
-    if (!modulesLoaded) return;
-
-    try {
-      localStorage.setItem("financelab-modules", JSON.stringify(modules));
+      localStorage.setItem("financelab-modules", JSON.stringify(nextModules));
     } catch (error) {
       console.error("Failed to save modules:", error);
     }
-  }, [modules, modulesLoaded]);
+  };
 
-  // Sync actual block counts from each module's saved content.
+  const hydrateModules = useCallback(() => {
+    const storedModules = readStoredModules();
+    setModules(storedModules);
+    setIsHydrated(true);
+  }, []);
+
   useEffect(() => {
-    if (!modulesLoaded) return;
+    hydrateModules();
+  }, [hydrateModules]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
 
     setModules((currentModules) =>
       currentModules.map((module) => {
@@ -197,8 +202,35 @@ export default function Home() {
         }
       })
     );
-  }, [modulesLoaded]);
+  }, [isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const handleModuleDeleted = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: unknown }>).detail;
+      const deletedId = typeof detail?.id === "string" ? detail.id : null;
+
+      if (!deletedId) return;
+
+      setModules((currentModules) =>
+        currentModules.filter(
+          (module) => String(module.id) !== String(deletedId)
+        )
+      );
+      setModuleToDelete((current) =>
+        current && String(current.id) === deletedId ? null : current
+      );
+    };
+
+    window.addEventListener(MODULE_DELETED_EVENT, handleModuleDeleted);
+
+    return () => {
+      window.removeEventListener(MODULE_DELETED_EVENT, handleModuleDeleted);
+    };
+  }, [isHydrated]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState<Module | null>(null);
   const [moduleTitle, setModuleTitle] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -250,6 +282,34 @@ export default function Home() {
 
     router.push("/editor");
   }
+
+  function confirmModuleDeletion() {
+    if (!moduleToDelete) return;
+
+    const deletedId = String(moduleToDelete.id);
+
+    const nextModules = modules.filter(
+      (module) => String(module.id) !== deletedId
+    );
+
+    persistModules(nextModules);
+    setModules(nextModules);
+
+    deleteModule(deletedId);
+    setModuleToDelete(null);
+  }
+
+  useEffect(() => {
+    if (!moduleToDelete) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setModuleToDelete(null);
+    }
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [moduleToDelete]);
 
   return (
     <div className="min-h-screen bg-[#090d18] text-slate-100">
@@ -307,8 +367,18 @@ export default function Home() {
                   onClick={() => {
                     setActiveNav(label);
                     setMobileMenuOpen(false);
+
+                    const targetId =
+                      label === "Overview" ? "overview-section" : "modules-section";
+
+                    requestAnimationFrame(() => {
+                      document.getElementById(targetId)?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    });
                   }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${
+                  className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${
                     active
                       ? "bg-indigo-500/15 font-semibold text-indigo-300"
                       : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
@@ -327,29 +397,6 @@ export default function Home() {
           </nav>
         </div>
 
-        <div className="mt-8 px-4">
-          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Preferences
-          </p>
-
-          <nav className="space-y-1">
-            {secondaryNavigation.map(({ label, icon: Icon }) => (
-              <button
-                key={label}
-                onClick={() => setActiveNav(label)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${
-                  activeNav === label
-                    ? "bg-indigo-500/15 text-indigo-300"
-                    : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
-                }`}
-              >
-                <Icon size={18} />
-                {label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
         <div className="mt-auto p-4">
           <div className="rounded-2xl border border-indigo-400/15 bg-gradient-to-br from-indigo-500/15 to-violet-500/[0.04] p-4">
             <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300">
@@ -362,7 +409,10 @@ export default function Home() {
               Build engaging financial learning experiences.
             </p>
             <button
-              onClick={() => setModalOpen(true)}
+              onClick={() => {
+              setMobileMenuOpen(false);
+              setModalOpen(true);
+            }}
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-400"
             >
               <Plus size={15} />
@@ -434,7 +484,10 @@ export default function Home() {
 
         <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-8">
           {/* Welcome */}
-          <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <section
+            id="overview-section"
+            className="scroll-mt-24 flex flex-col justify-between gap-5 sm:flex-row sm:items-center"
+          >
             <div>
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -545,7 +598,10 @@ export default function Home() {
           </section>
 
           {/* Main grid */}
-          <section className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
+          <section
+            id="modules-section"
+            className="scroll-mt-24 mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]"
+          >
             <div className="min-w-0">
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -558,7 +614,13 @@ export default function Home() {
                 </div>
 
                 <button
-                  onClick={() => setActiveNav("My Modules")}
+                  onClick={() => {
+                    setActiveNav("My Modules");
+                    document.getElementById("modules-section")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }}
                   className="flex items-center gap-1 text-xs font-medium text-indigo-400 transition hover:text-indigo-300"
                 >
                   View all <ArrowUpRight size={14} />
@@ -566,7 +628,25 @@ export default function Home() {
               </div>
 
               <div className="space-y-3">
-                {filteredModules.length === 0 ? (
+                {modules.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 py-12 text-center">
+                    <FolderOpen
+                      size={28}
+                      className="mx-auto text-slate-600"
+                    />
+                    <p className="mt-3 text-sm text-slate-400">
+                      No modules yet. Create one to get started.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setModalOpen(true)}
+                      className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400"
+                    >
+                      <Plus size={15} />
+                      Create Module
+                    </button>
+                  </div>
+                ) : filteredModules.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/10 py-12 text-center">
                     <FolderOpen
                       size={28}
@@ -627,13 +707,24 @@ export default function Home() {
                           </div>
                         </div>
 
-                        <button
-                          aria-label={`Open ${module.title}`}
-                          onClick={() => openModule(module)}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.07] text-slate-500 transition hover:border-indigo-500/30 hover:text-indigo-300 sm:flex"
-                        >
-                          <ArrowUpRight size={16} />
-                        </button>
+                        <div className="flex shrink-0 self-end gap-2 sm:self-auto">
+                          <button
+                            type="button"
+                            aria-label={`Open ${module.title}`}
+                            onClick={() => openModule(module)}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.07] text-slate-500 transition hover:border-indigo-500/30 hover:text-indigo-300"
+                          >
+                            <ArrowUpRight size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Delete module ${module.title}`}
+                            onClick={() => setModuleToDelete(module)}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg border border-rose-500/20 text-rose-400 transition hover:border-rose-500/50 hover:bg-rose-500/10 hover:text-rose-300"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     </article>
                   ))
@@ -670,35 +761,25 @@ export default function Home() {
                   </button>
 
                   <button
-                    onClick={() => setActiveNav("Templates")}
-                    className="flex w-full items-center gap-3 rounded-xl border border-white/[0.06] p-3 text-left transition hover:border-indigo-500/30 hover:bg-indigo-500/[0.06]"
+                    onClick={() => {
+                      setActiveNav("My Modules");
+                      setMobileMenuOpen(false);
+                      document.getElementById("modules-section")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }}
+                    className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-white/[0.06] p-3 text-left transition hover:border-indigo-500/30 hover:bg-indigo-500/[0.06]"
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400">
-                      <FileText size={17} />
+                      <FolderOpen size={17} />
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-slate-200">
-                        Browse Templates
+                        Open My Modules
                       </p>
                       <p className="mt-1 text-[10px] text-slate-500">
-                        Explore starting points
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveNav("Analytics")}
-                    className="flex w-full items-center gap-3 rounded-xl border border-white/[0.06] p-3 text-left transition hover:border-indigo-500/30 hover:bg-indigo-500/[0.06]"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
-                      <ChartNoAxesCombined size={17} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-200">
-                        View Analytics
-                      </p>
-                      <p className="mt-1 text-[10px] text-slate-500">
-                        Track your progress
+                        Browse your saved modules
                       </p>
                     </div>
                   </button>
@@ -801,6 +882,58 @@ export default function Home() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {moduleToDelete && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setModuleToDelete(null);
+            }
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-module-title"
+            aria-describedby="delete-module-description"
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl shadow-black/40"
+          >
+            <h2
+              id="delete-module-title"
+              className="text-lg font-semibold text-white"
+            >
+              Delete Module?
+            </h2>
+            <p
+              id="delete-module-description"
+              className="mt-3 break-words text-sm leading-6 text-slate-400"
+            >
+              Are you sure you want to delete "{moduleToDelete.title}"? This
+              action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setModuleToDelete(null)}
+                className="min-h-10 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-white/[0.05]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmModuleDeletion}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-rose-500"
+              >
+                <Trash2 size={14} />
+                Delete Module
+              </button>
+            </div>
           </div>
         </div>
       )}
