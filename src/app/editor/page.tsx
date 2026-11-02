@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import BlockCanvas from "@/components/editor/block-canvas";
+import ModuleIOControls from "@/components/editor/module-io-controls";
 import {
   ArrowLeft,
   Monitor,
@@ -194,6 +195,7 @@ export default function ModuleEditorPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <ModuleIOControls />
             <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
               <button
                 type="button"

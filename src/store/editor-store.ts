@@ -44,6 +44,7 @@ interface EditorStore {
   setIsDragging: (value: boolean) => void;
 
   updateModuleMetadata: (updates: Partial<ModuleMetadata>) => void;
+  importModule: (module: LearningModule) => void;
   resetModule: () => void;
 }
 
@@ -355,6 +356,34 @@ export const useEditorStore = create<EditorStore>((set) => ({
       saveModule(nextModule);
 
       return createHistoryUpdate(state.module, nextModule, state.history);
+    }),
+
+  importModule: (importedModule) =>
+    set((state) => {
+      const nextModule: LearningModule = {
+        ...importedModule,
+        metadata: {
+          ...importedModule.metadata,
+          updatedAt: Date.now(),
+        },
+      };
+
+      saveModule(nextModule);
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "financelab-active-module-id",
+          nextModule.metadata.id
+        );
+      }
+
+      return {
+        ...createHistoryUpdate(state.module, nextModule, state.history),
+        activeModuleId: nextModule.metadata.id,
+        selectedBlockId: null,
+        activeMode: "edit",
+        isDragging: false,
+      };
     }),
 
   resetModule: () =>
