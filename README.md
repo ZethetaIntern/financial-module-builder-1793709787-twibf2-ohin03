@@ -6,15 +6,23 @@ The application provides a visual editing experience with reusable content block
 
 ## Features
 
-### 1. Block-Based Content Builder
+### 1. Module Management
 
-* Create and organize learning modules using reusable content blocks.
+* Create and organize multiple learning modules.
 * Edit module titles and descriptions.
-* Add, update, delete, and reorder blocks.
-* Control block visibility.
-* Automatically persist module data locally.
+* Open existing modules from the dashboard.
+* Delete modules with a confirmation dialog.
+* Persist module deletion and saved content changes.
+* Automatically save module data locally.
 
-### 2. 14 Interactive Content Blocks
+### 2. Block-Based Content Builder
+
+* Add, update, delete, and reorder content blocks.
+* Control block visibility.
+* Organize learning content using reusable blocks.
+* Edit rich text content using TipTap.
+
+### 3. 14 Interactive Content Blocks
 
 | Category | Block Types                                            |
 | -------- | ------------------------------------------------------ |
@@ -24,35 +32,44 @@ The application provides a visual editing experience with reusable content block
 | Finance  | Financial Calculator, Interactive Example              |
 | Learning | Progress Tracker, Achievement Badge, Concept Explainer |
 
-### 3. Drag and Drop
+### 4. Drag and Drop
 
 * Reorder content blocks using drag-and-drop.
-* Keyboard-accessible drag-and-drop interactions.
+* Support keyboard-accessible drag-and-drop interactions.
 * Persist block ordering.
 * Keep editing controls separate from learner preview.
 
-### 4. Undo and Redo
+### 5. Undo and Redo
 
 * Track editing changes through history.
 * Support up to 50 history states.
 * Undo and redo editing operations.
 * Use keyboard shortcuts for history navigation.
 
-### 5. Financial Calculator
+### 6. Financial Calculator
 
-* Interactive compound interest calculations.
-* Input validation.
+* Perform interactive compound interest calculations.
+* Validate calculator inputs.
 * Handle invalid and empty inputs safely.
 * Update calculations as inputs change.
 
-### 6. Learner Preview
+### 7. Learner Preview
 
-* Switch between editing and preview modes.
+* Switch between editing and learner preview modes.
 * View learner-facing module titles and descriptions.
 * Display visible content blocks without the editor's drag-and-drop interface.
 * Hide blocks marked as invisible.
+* Preview layouts using desktop, tablet, and mobile device widths.
 
-### 7. JSON Export and Import
+### 8. Responsive User Interface
+
+* Responsive dashboard and editor layouts.
+* Compact mobile toolbar.
+* Desktop toolbar controls.
+* Mobile-friendly navigation and editing controls.
+* Responsive content and preview layouts.
+
+### 9. JSON Export and Import
 
 * Export complete learning modules as JSON files.
 * Import previously exported modules.
@@ -149,7 +166,7 @@ http://localhost:3000
 | `npm run build`      | Build the application for production |
 | `npm run start`      | Start the production server          |
 | `npm run lint`       | Run ESLint                           |
-| `npm test`           | Run the Vitest test suite            |
+| `npm run test`       | Run the Vitest test suite            |
 | `npm run test:watch` | Run Vitest in watch mode             |
 
 ## Project Structure
@@ -159,20 +176,33 @@ financial-module-builder/
 ├── public/
 ├── src/
 │   ├── app/
-│   │   └── editor/
+│   │   ├── editor/
+│   │   ├── globals.css
+│   │   └── page.tsx
 │   ├── components/
-│   │   └── editor/
+│   │   ├── blocks/
+│   │   │   ├── finance/
+│   │   │   ├── learning/
+│   │   │   ├── media/
+│   │   │   ├── quiz/
+│   │   │   └── text/
+│   │   ├── editor/
+│   │   ├── layout/
+│   │   ├── panels/
+│   │   ├── preview/
+│   │   └── ui/
 │   ├── data/
-│   │   └── block-registry.ts
+│   ├── hooks/
 │   ├── lib/
+│   │   ├── editor/
 │   │   ├── finance/
-│   │   └── module-io.ts
+│   │   ├── history/
+│   │   ├── utils/
+│   │   └── validation/
 │   ├── store/
-│   │   └── editor-store.ts
 │   └── types/
 ├── tests/
 │   ├── e2e/
-│   ├── integration/
 │   └── unit/
 ├── package.json
 ├── playwright.config.ts
@@ -185,7 +215,7 @@ financial-module-builder/
 Run unit tests:
 
 ```bash
-npm test
+npm run test
 ```
 
 Run end-to-end tests:
@@ -200,6 +230,12 @@ Run TypeScript validation:
 npx tsc --noEmit
 ```
 
+Run ESLint:
+
+```bash
+npm run lint
+```
+
 Create a production build:
 
 ```bash
@@ -208,7 +244,11 @@ npm run build
 
 ## Data Storage
 
-FinanceLab currently uses browser Local Storage for local module persistence.
+FinanceLab currently uses browser Local Storage for module persistence.
+
+Module information and saved content are maintained locally using dedicated storage keys.
+
+Deleting a module removes its saved module entry and associated content from Local Storage.
 
 JSON export and import allow learning modules to be transferred between compatible FinanceLab environments.
 
@@ -222,8 +262,8 @@ JSON export and import allow learning modules to be transferred between compatib
 | Day 4 | Financial Interactions and Validation | Completed   |
 | Day 5 | Learner Preview System                | Completed   |
 | Day 6 | JSON Export/Import                    | Completed   |
-| Day 7 | Integration and Testing               | In Progress |
-| Day 8 | Documentation and Final QA            | Pending     |
+| Day 7 | Integration, Testing, and UI Polish   | Completed   |
+| Day 8 | Documentation and Final QA            | Completed   |
 
 ## Developer
 
