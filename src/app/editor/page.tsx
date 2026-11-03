@@ -190,13 +190,20 @@ export default function ModuleEditorPage() {
             id: number;
             title: string;
             description?: string;
+            createdAt?: number;
+            updatedAt?: number;
           }) =>
             String(item.id) === activeModuleId
               ? {
                   ...item,
                   title: module.metadata.title,
                   description: module.metadata.description,
-                  updated: "Just now",
+                  createdAt: item.createdAt ?? module.metadata.createdAt,
+                  updatedAt: module.metadata.updatedAt,
+                  updated: new Intl.DateTimeFormat(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(module.metadata.updatedAt)),
                 }
               : item
           );

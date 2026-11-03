@@ -36,6 +36,8 @@ type Module = {
   category: string;
   blocks: number;
   progress: number;
+  createdAt?: number;
+  updatedAt?: number;
   updated: string;
   color: string;
   icon: "book" | "chart" | "file";
@@ -182,20 +184,62 @@ export default function Home() {
           );
 
           if (!savedContent) {
-            return { ...module, blocks: 0 };
+            return { ...module, blocks: 0, progress: 0 };
           }
 
           const parsed = JSON.parse(savedContent);
+          const blocks = Array.isArray(parsed?.blocks) ? parsed.blocks : [];
+
+          const trackers = blocks.filter(
+            (block: { type?: string; content?: Record<string, unknown> }) =>
+              block?.type === "progress-tracker" &&
+              block.content &&
+              typeof block.content === "object"
+          );
+
+          const totals = trackers.reduce(
+            (
+              result: { completed: number; total: number },
+              block: { content: Record<string, unknown> }
+            ) => {
+              const total = Math.max(
+                1,
+                Math.floor(Number(block.content.total) || 1)
+              );
+
+              const completed = Math.min(
+                total,
+                Math.max(
+                  0,
+                  Math.floor(Number(block.content.completed) || 0)
+                )
+              );
+
+              return {
+                completed: result.completed + completed,
+                total: result.total + total,
+              };
+            },
+            { completed: 0, total: 0 }
+          );
+
+          const progress = trackers.length
+            ? Math.min(
+                100,
+                Math.round((totals.completed / totals.total) * 100)
+              )
+            : 0;
 
           return {
             ...module,
-            blocks: Array.isArray(parsed?.blocks)
-              ? parsed.blocks.length
-              : 0,
+            blocks: blocks.length,
+            progress,
+            createdAt: parsed?.metadata?.createdAt ?? module.createdAt,
+            updatedAt: parsed?.metadata?.updatedAt ?? module.updatedAt,
           };
         } catch (error) {
           console.error(
-            `Failed to sync blocks for module ${module.id}:`,
+            `Failed to sync module ${module.id}:`,
             error
           );
           return module;
@@ -247,8 +291,12 @@ export default function Home() {
 
     if (!moduleTitle.trim()) return;
 
+    const now = Date.now();
+
     const newModule: Module = {
-      id: Date.now(),
+      id: now,
+      createdAt: now,
+      updatedAt: now,
       title: moduleTitle.trim(),
       description: "Create an interactive learning experience for your learners.",
       category: "New Module",
@@ -694,7 +742,21 @@ export default function Home() {
                             <span className="h-1 w-1 rounded-full bg-slate-700" />
                             <span className="flex items-center gap-1">
                               <Clock3 size={12} />
-                              {module.updated}
+                              Created: {module.createdAt
+                                ? new Intl.DateTimeFormat(undefined, {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  }).format(new Date(module.createdAt))
+                                : "Not recorded"}
+                            </span>
+                            <span className="h-1 w-1 rounded-full bg-slate-700" />
+                            <span>
+                              Updated: {module.updatedAt
+                                ? new Intl.DateTimeFormat(undefined, {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  }).format(new Date(module.updatedAt))
+                                : "Not recorded"}
                             </span>
                           </div>
 
