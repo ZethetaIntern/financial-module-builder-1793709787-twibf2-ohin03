@@ -259,7 +259,11 @@ export default function Home() {
       icon: "book",
     };
 
-    setModules((current) => [newModule, ...current]);
+    setModules((current) => {
+      const nextModules = [newModule, ...current];
+      persistModules(nextModules);
+      return nextModules;
+    });
 
     loadModule(
       String(newModule.id),
